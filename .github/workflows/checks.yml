@@ -1,0 +1,36 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push supersedes the run it interrupted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The Env type is generated from wrangler.jsonc. A binding added there
+      # but not regenerated would type-check against a stale Env.
+      - name: Generated types are current
+        run: |
+          npm run types
+          git diff --exit-code worker-configuration.d.ts
+
+      - run: npm run typecheck
+
+      # Inside workerd, with real local D1 built from migrations/.
+      - run: npm test

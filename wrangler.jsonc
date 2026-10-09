@@ -1,0 +1,47 @@
+// The top level is what `wrangler dev` and the tests run. `staging` and
+// `production` are what CI deploys (ADR-0021 in sisi-j/ash). Their database
+// ids are filled in when the databases are created - see ash-backend#2.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ash-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "vars": {
+    // Replaced at deploy with the commit being deployed.
+    "COMMIT": "dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ash-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "env": {
+    "staging": {
+      "name": "ash-backend-staging",
+      "vars": { "COMMIT": "dev" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ash-staging",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "ash-backend-production",
+      "vars": { "COMMIT": "dev" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ash-production",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}
