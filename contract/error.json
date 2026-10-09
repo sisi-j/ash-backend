@@ -1,0 +1,6 @@
+{
+  "error": {
+    "kind": "not_joined",
+    "message": "Mojang says that player did not join this challenge"
+  }
+}
