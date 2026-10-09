@@ -31,6 +31,7 @@ Nothing about playing depends on this service. If it's unreachable, ash loses co
 ```
 npm ci
 npm run dev        # a local Worker with a local D1, at http://localhost:8787
+                   # needs CHALLENGE_SECRET=<anything> in .dev.vars (gitignored)
 npm test           # every test, inside workerd, with real local D1
 npm run typecheck
 npm run types      # regenerate worker-configuration.d.ts after changing wrangler.jsonc
