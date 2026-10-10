@@ -8,6 +8,7 @@ One example per response shape. The backend's tests check every real response ag
 | `session-challenge.json` | `POST /v1/session/challenge` |
 | `session.json` | `POST /v1/session` with `{challenge, username}` |
 | `account.json` | `GET /v1/account`, signed in |
+| `settings.json` | `GET /v1/settings` and `PUT /v1/settings` (which takes `{changes: [the same items]}`), signed in. `deleted: true` has an empty `value` |
 | `news.json` | `GET /v1/news`: published posts, newest first. `cover_url` may be null; `kind` is `news` or `patch_notes`; `body` is the Markdown subset |
 | (no body, 204) | `DELETE /v1/account`, signed in: the account and everything about it are gone |
 | `error.json` | every failure. `kind` is the stable part. |

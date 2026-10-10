@@ -4,6 +4,7 @@ import type { Deps } from "./deps";
 import { publishedNews } from "./news";
 import { failure, json } from "./respond";
 import { account, authenticate, challenge, signIn, type SignedIn, signOut } from "./session";
+import { getSettings, putSettings } from "./settings";
 
 type Handler = (request: Request, env: Env, deps: Deps) => Promise<Response>;
 
@@ -25,6 +26,10 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
     DELETE: signedIn((who, _request, env) => signOut(who, env)),
   },
   "/v1/news": { GET: (_request, env) => publishedNews(env) },
+  "/v1/settings": {
+    GET: signedIn((who, _request, env) => getSettings(who, env)),
+    PUT: signedIn((who, request, env, deps) => putSettings(who, request, env, deps)),
+  },
   "/v1/account": {
     GET: signedIn((who) => account(who)),
     DELETE: signedIn((who, _request, env) => deleteAccount(who, env)),
