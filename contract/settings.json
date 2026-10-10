@@ -1,0 +1,16 @@
+{
+  "settings": [
+    {
+      "key": "feature:crosshair.colour",
+      "value": "#FF2FBF71",
+      "deleted": false,
+      "updated_at": 1760100000000
+    },
+    {
+      "key": "instance:6c1e4b1a-2f7d-4a0e-9d3b-8f5a1c2e7b90",
+      "value": "{\"name\":\"1.8.9 PvP\",\"version_id\":\"1.8.9\",\"loader\":\"legacy_fabric\",\"created_at_ms\":1759000000000}",
+      "deleted": false,
+      "updated_at": 1760100000000
+    }
+  ]
+}
