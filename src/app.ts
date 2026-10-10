@@ -1,3 +1,4 @@
+import { deleteAccount } from "./deletion";
 import type { Deps } from "./deps";
 import { failure, json } from "./respond";
 import { account, authenticate, challenge, signIn, type SignedIn, signOut } from "./session";
@@ -21,7 +22,10 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
     POST: signIn,
     DELETE: signedIn((who, _request, env) => signOut(who, env)),
   },
-  "/v1/account": { GET: signedIn((who) => account(who)) },
+  "/v1/account": {
+    GET: signedIn((who) => account(who)),
+    DELETE: signedIn((who, _request, env) => deleteAccount(who, env)),
+  },
 };
 
 export async function handle(request: Request, env: Env, deps: Deps): Promise<Response> {

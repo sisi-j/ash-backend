@@ -8,6 +8,7 @@ One example per response shape. The backend's tests check every real response ag
 | `session-challenge.json` | `POST /v1/session/challenge` |
 | `session.json` | `POST /v1/session` with `{challenge, username}` |
 | `account.json` | `GET /v1/account`, signed in |
+| (no body, 204) | `DELETE /v1/account`, signed in: the account and everything about it are gone |
 | `error.json` | every failure. `kind` is the stable part. |
 
 The error kinds so far:
