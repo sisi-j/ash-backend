@@ -9,8 +9,14 @@
   "compatibility_date": "2026-10-01",
   "vars": {
     // Replaced at deploy with the commit being deployed.
-    "COMMIT": "dev"
+    "COMMIT": "dev",
+    // Where the ASSETS bucket is served publicly (news covers, later cosmetics).
+    "ASSETS_URL": "http://localhost:8787/assets",
+    // Cloudflare Access for /admin. Empty means /admin refuses everything.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
   },
+  "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "ash-assets-local" }],
   // Daily, at a quiet hour: delete accounts with no sign-in for a year.
   "triggers": { "crons": ["17 4 * * *"] },
   "d1_databases": [
@@ -26,7 +32,13 @@
       "name": "ash-backend-staging",
       "routes": [{ "pattern": "api-staging.ashlauncher.com", "custom_domain": true }],
       "workers_dev": false,
-      "vars": { "COMMIT": "dev" },
+      "vars": {
+        "COMMIT": "dev",
+        "ASSETS_URL": "https://cdn-staging.ashlauncher.com",
+        "ACCESS_TEAM_DOMAIN": "ashlauncher.cloudflareaccess.com",
+        "ACCESS_AUD": "f36f5641fc0218b3c05a0c9e2f97f1a531aee3864c5e2d19c25deb6b21f025cd"
+      },
+      "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "ash-assets-staging" }],
       "triggers": { "crons": ["17 4 * * *"] },
       "d1_databases": [
         {
@@ -41,7 +53,13 @@
       "name": "ash-backend-production",
       "routes": [{ "pattern": "api.ashlauncher.com", "custom_domain": true }],
       "workers_dev": false,
-      "vars": { "COMMIT": "dev" },
+      "vars": {
+        "COMMIT": "dev",
+        "ASSETS_URL": "https://cdn.ashlauncher.com",
+        "ACCESS_TEAM_DOMAIN": "ashlauncher.cloudflareaccess.com",
+        "ACCESS_AUD": "f36f5641fc0218b3c05a0c9e2f97f1a531aee3864c5e2d19c25deb6b21f025cd"
+      },
+      "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "ash-assets-production" }],
       "triggers": { "crons": ["17 4 * * *"] },
       "d1_databases": [
         {

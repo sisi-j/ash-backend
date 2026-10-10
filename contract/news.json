@@ -1,0 +1,13 @@
+{
+  "posts": [
+    {
+      "id": "6f0c2b1e-8d3a-4c4e-9b7a-2f1d0e9c8b7a",
+      "kind": "patch_notes",
+      "title": "ash 0.2: your ash account",
+      "body": "## What's new\n\n- **ash accounts**, made when you sign in.\n- Delete yours any time in *Settings*.\n\nMore in the [privacy statement](https://ashlauncher.com/privacy.html).",
+      "cover_url": "https://cdn.ashlauncher.com/news/6f0c2b1e-8d3a-4c4e-9b7a-2f1d0e9c8b7a-1a2b3c4d.png",
+      "published_at": 1760100000000,
+      "updated_at": 1760100000000
+    }
+  ]
+}

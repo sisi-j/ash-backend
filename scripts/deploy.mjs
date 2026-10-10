@@ -5,7 +5,7 @@
 // creates what is missing or confirms what is there, so the first deploy and
 // the hundredth run the same steps.
 //
-//   1. the environment's D1 database exists (created on the first run), and
+//   1. the environment's D1 database and R2 bucket exist (created on the first run), and
 //      its id goes into this checkout's wrangler.jsonc - never committed;
 //   2. migrations are applied to it;
 //   3. the Worker is deployed, with the commit as COMMIT;
@@ -56,6 +56,16 @@ const pattern = new RegExp(`("database_name": "${database}",\\s*"database_id": "
 if (!pattern.test(config)) throw new Error(`wrangler.jsonc has no ${database} binding to fill in`);
 writeFileSync("wrangler.jsonc", config.replace(pattern, `$1${id}$2`));
 console.log(`${database} is ${id}`);
+
+// 1b. The assets bucket: news covers, later cosmetics. Its public custom
+// domain (cdn[-staging].ashlauncher.com) is connected once, by hand, in the
+// dashboard - see the README.
+const bucket = `ash-assets-${env}`;
+const buckets = [...wrangler(["r2", "bucket", "list"]).matchAll(/name:\s+(\S+)/g)].map((m) => m[1]);
+if (!buckets.includes(bucket)) {
+  wrangler(["r2", "bucket", "create", bucket]);
+}
+console.log(`${bucket} exists`);
 
 // 2. Migrations.
 console.log(wrangler(["d1", "migrations", "apply", database, "--env", env, "--remote"]));
