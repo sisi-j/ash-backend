@@ -1,5 +1,7 @@
+import { handleAdmin } from "./admin";
 import { deleteAccount } from "./deletion";
 import type { Deps } from "./deps";
+import { publishedNews } from "./news";
 import { failure, json } from "./respond";
 import { account, authenticate, challenge, signIn, type SignedIn, signOut } from "./session";
 
@@ -22,6 +24,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
     POST: signIn,
     DELETE: signedIn((who, _request, env) => signOut(who, env)),
   },
+  "/v1/news": { GET: (_request, env) => publishedNews(env) },
   "/v1/account": {
     GET: signedIn((who) => account(who)),
     DELETE: signedIn((who, _request, env) => deleteAccount(who, env)),
@@ -30,6 +33,9 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
 
 export async function handle(request: Request, env: Env, deps: Deps): Promise<Response> {
   const url = new URL(request.url);
+  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
+    return handleAdmin(request, env, deps);
+  }
   const methods = routes[url.pathname];
   if (methods === undefined) {
     return failure(404, "not_found", `nothing at ${url.pathname}`);

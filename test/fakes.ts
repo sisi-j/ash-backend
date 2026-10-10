@@ -1,5 +1,6 @@
 import type { Deps } from "../src/deps";
 import { type JoinedProfile, type Mojang, MojangUnavailable } from "../src/mojang";
+import { accessKeys } from "./access-keys";
 
 /**
  * A Mojang that confirms exactly the joins a test makes, as the real one
@@ -29,6 +30,7 @@ export function fakeDeps(mojang: Mojang, start = 1_760_000_000_000): Deps & { ad
     mojang,
     now: () => now,
     randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),
+    accessKeys,
     advance(ms) {
       now += ms;
     },

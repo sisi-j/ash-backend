@@ -37,6 +37,16 @@ npm run typecheck
 npm run types      # regenerate worker-configuration.d.ts after changing wrangler.jsonc
 ```
 
+## News, and /admin
+
+Posts are written at `https://api.ashlauncher.com/admin`, or on `api-staging` for trying things out. The page is plain HTML served by the Worker. Cloudflare Access puts a login in front of it, and the Worker checks Access's signed token on every `/admin` request too (`src/access.ts`). With `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` empty, `/admin` refuses everything.
+
+The launcher reads published posts from `GET /v1/news`. Covers are stored in the `ASSETS` R2 bucket and served from `cdn[-staging].ashlauncher.com`.
+
+Set up once, by hand, in the Cloudflare dashboard:
+- **R2 enabled.** The deploy creates `ash-assets-staging` and `ash-assets-production`. Each bucket's custom domain is connected under R2, then the bucket, then **Settings → Custom Domains**: `cdn-staging.ashlauncher.com` and `cdn.ashlauncher.com`.
+- **A Zero Trust team, and one self-hosted Access application** covering `api.ashlauncher.com/admin` and `api-staging.ashlauncher.com/admin`, allowing the product owner's email. Its team domain and Application Audience (AUD) tag are the `ACCESS_*` values in `wrangler.jsonc`.
+
 ## Rules the code keeps
 
 - **Real bindings in tests, never mocks.** Tests run inside workerd through `@cloudflare/vitest-plugin`. D1 is a real SQLite database built from `migrations/`.

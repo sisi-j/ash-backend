@@ -10,7 +10,16 @@ export default defineConfig({
   plugins: [
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },
-      miniflare: { bindings: { TEST_MIGRATIONS: migrations, CHALLENGE_SECRET: "test-only-secret" } },
+      miniflare: {
+        bindings: {
+          TEST_MIGRATIONS: migrations,
+          CHALLENGE_SECRET: "test-only-secret",
+          // test/access-keys.ts stands in for this team.
+          ACCESS_TEAM_DOMAIN: "ash-test.cloudflareaccess.com",
+          ACCESS_AUD: "test-aud-0123456789abcdef",
+          ASSETS_URL: "https://cdn.test",
+        },
+      },
     }),
   ],
   test: {
