@@ -1,6 +1,7 @@
 // The top level is what `wrangler dev` and the tests run. `staging` and
 // `production` are what CI deploys (ADR-0021 in sisi-j/ash). Their database
-// ids are filled in when the databases are created - see ash-backend#2.
+// ids stay zero here: scripts/deploy.mjs creates each database on its first
+// deploy and fills its id into the CI checkout only.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ash-backend",
@@ -23,6 +24,8 @@
   "env": {
     "staging": {
       "name": "ash-backend-staging",
+      "routes": [{ "pattern": "api-staging.ashlauncher.com", "custom_domain": true }],
+      "workers_dev": false,
       "vars": { "COMMIT": "dev" },
       "triggers": { "crons": ["17 4 * * *"] },
       "d1_databases": [
@@ -36,6 +39,8 @@
     },
     "production": {
       "name": "ash-backend-production",
+      "routes": [{ "pattern": "api.ashlauncher.com", "custom_domain": true }],
+      "workers_dev": false,
       "vars": { "COMMIT": "dev" },
       "triggers": { "crons": ["17 4 * * *"] },
       "d1_databases": [
