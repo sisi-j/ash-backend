@@ -1,71 +1,26 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import accountExample from "../contract/account.json";
-import challengeExample from "../contract/session-challenge.json";
 import errorExample from "../contract/error.json";
 import sessionExample from "../contract/session.json";
-import { handle } from "../src/app";
 import { CHALLENGE_LIFETIME_MS } from "../src/challenge";
-import { serverIdFor } from "../src/minecraft-digest";
 import { SESSION_LIFETIME_MS } from "../src/session";
 import { expectShape } from "./contract";
-import { FakeMojang, fakeDeps } from "./fakes";
+import { harness, NOTCH, reset, rows } from "./harness";
 
-const NOTCH = { uuid: "986dec87b7ec47ff89ff033fdb95c4b5", username: "Notch" };
-
-let mojang: FakeMojang;
-let deps: ReturnType<typeof fakeDeps>;
+let h: ReturnType<typeof harness>;
+let mojang: ReturnType<typeof harness>["mojang"];
+let deps: ReturnType<typeof harness>["deps"];
+let call: ReturnType<typeof harness>["call"];
+let newChallenge: ReturnType<typeof harness>["newChallenge"];
+let joinAs: ReturnType<typeof harness>["joinAs"];
+let signIn: ReturnType<typeof harness>["signIn"];
 
 beforeEach(async () => {
-  mojang = new FakeMojang();
-  deps = fakeDeps(mojang);
-  // Storage is per test file, not per test; each test starts empty.
-  await env.DB.batch(
-    ["sessions", "entitlements", "cosmetics", "redeemed_challenges", "accounts"].map((t) =>
-      env.DB.prepare(`DELETE FROM ${t}`),
-    ),
-  );
+  h = harness();
+  ({ mojang, deps, call, newChallenge, joinAs, signIn } = h);
+  await reset();
 });
-
-async function call(method: string, path: string, opts: { body?: unknown; token?: string } = {}) {
-  const headers: Record<string, string> = {};
-  if (opts.body !== undefined) headers["content-type"] = "application/json";
-  if (opts.token !== undefined) headers.authorization = `Bearer ${opts.token}`;
-  const response = await handle(
-    new Request(`https://api.test${path}`, {
-      method,
-      headers,
-      ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
-    }),
-    env,
-    deps,
-  );
-  const text = await response.text();
-  return { status: response.status, body: text === "" ? null : (JSON.parse(text) as any) };
-}
-
-async function newChallenge(): Promise<string> {
-  const { status, body } = await call("POST", "/v1/session/challenge");
-  expect(status).toBe(200);
-  expectShape(body, challengeExample);
-  return body.challenge;
-}
-
-/** What the player's machine does: join the derived server id at Mojang. */
-async function joinAs(profile: typeof NOTCH, challenge: string) {
-  mojang.join(profile, await serverIdFor(challenge));
-}
-
-async function signIn(profile = NOTCH) {
-  const challenge = await newChallenge();
-  await joinAs(profile, challenge);
-  return call("POST", "/v1/session", { body: { challenge, username: profile.username } });
-}
-
-async function rows(table: string): Promise<number> {
-  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>();
-  return row!.n;
-}
 
 async function everyRow(): Promise<number> {
   let total = 0;

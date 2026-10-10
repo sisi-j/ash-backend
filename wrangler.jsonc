@@ -10,6 +10,8 @@
     // Replaced at deploy with the commit being deployed.
     "COMMIT": "dev"
   },
+  // Daily, at a quiet hour: delete accounts with no sign-in for a year.
+  "triggers": { "crons": ["17 4 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -22,6 +24,7 @@
     "staging": {
       "name": "ash-backend-staging",
       "vars": { "COMMIT": "dev" },
+      "triggers": { "crons": ["17 4 * * *"] },
       "d1_databases": [
         {
           "binding": "DB",
@@ -34,6 +37,7 @@
     "production": {
       "name": "ash-backend-production",
       "vars": { "COMMIT": "dev" },
+      "triggers": { "crons": ["17 4 * * *"] },
       "d1_databases": [
         {
           "binding": "DB",
