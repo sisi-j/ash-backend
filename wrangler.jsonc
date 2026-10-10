@@ -35,8 +35,8 @@
       "vars": {
         "COMMIT": "dev",
         "ASSETS_URL": "https://cdn-staging.ashlauncher.com",
-        "ACCESS_TEAM_DOMAIN": "",
-        "ACCESS_AUD": ""
+        "ACCESS_TEAM_DOMAIN": "ashlauncher.cloudflareaccess.com",
+        "ACCESS_AUD": "f36f5641fc0218b3c05a0c9e2f97f1a531aee3864c5e2d19c25deb6b21f025cd"
       },
       "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "ash-assets-staging" }],
       "triggers": { "crons": ["17 4 * * *"] },
@@ -56,8 +56,8 @@
       "vars": {
         "COMMIT": "dev",
         "ASSETS_URL": "https://cdn.ashlauncher.com",
-        "ACCESS_TEAM_DOMAIN": "",
-        "ACCESS_AUD": ""
+        "ACCESS_TEAM_DOMAIN": "ashlauncher.cloudflareaccess.com",
+        "ACCESS_AUD": "f36f5641fc0218b3c05a0c9e2f97f1a531aee3864c5e2d19c25deb6b21f025cd"
       },
       "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "ash-assets-production" }],
       "triggers": { "crons": ["17 4 * * *"] },
