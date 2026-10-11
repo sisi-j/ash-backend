@@ -1,0 +1,10 @@
+{
+  "cosmetics": [
+    {
+      "id": "cape.ember",
+      "slot": "cape",
+      "name": "Ember",
+      "texture_url": "https://cdn.ashlauncher.com/cosmetics/cape-ember.png"
+    }
+  ]
+}

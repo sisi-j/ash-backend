@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "equipped": {
+    "cape": {
+      "id": "cape.ember",
+      "texture_url": "https://cdn.ashlauncher.com/cosmetics/cape-ember.png"
+    }
+  }
+}

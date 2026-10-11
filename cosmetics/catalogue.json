@@ -1,0 +1,7 @@
+{
+  "cosmetics": [
+    { "id": "cape.ash", "slot": "cape", "name": "Ash", "file": "cape-ash.png" },
+    { "id": "cape.ember", "slot": "cape", "name": "Ember", "file": "cape-ember.png" },
+    { "id": "cape.midnight", "slot": "cape", "name": "Midnight", "file": "cape-midnight.png" }
+  ]
+}

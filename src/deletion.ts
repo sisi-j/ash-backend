@@ -1,4 +1,5 @@
 import type { SignedIn } from "./session";
+import { profileKey } from "./wardrobe";
 
 /**
  * Deleting an ash account deletes everything about it (spec 0004; Microsoft
@@ -14,6 +15,8 @@ export const STALE_AFTER_MS = 365 * 24 * 60 * 60 * 1000;
 /** DELETE /v1/account */
 export async function deleteAccount(who: SignedIn, env: Env): Promise<Response> {
   await env.DB.prepare("DELETE FROM accounts WHERE uuid = ?").bind(who.uuid).run();
+  // The public file of what it wore goes with it (ADR-0023).
+  await env.ASSETS.delete(profileKey(who.uuid));
   return new Response(null, { status: 204 });
 }
 
@@ -24,6 +27,7 @@ export async function expireStaleAccounts(env: Env, now: number): Promise<number
   // cascade removed, which is not "how many accounts".
   const result = await env.DB.prepare("DELETE FROM accounts WHERE last_sign_in_at < ? RETURNING uuid")
     .bind(now - STALE_AFTER_MS)
-    .all();
+    .all<{ uuid: string }>();
+  for (const row of result.results) await env.ASSETS.delete(profileKey(row.uuid));
   return result.results.length;
 }
