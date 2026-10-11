@@ -1,0 +1,11 @@
+{
+  "entitled": [
+    "cape.ash",
+    "cape.ember"
+  ],
+  "equipped": {
+    "cape": "cape.ember",
+    "head": null,
+    "back": null
+  }
+}

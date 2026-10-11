@@ -14,7 +14,7 @@
 //   5. /health on the environment's own host answers with this commit.
 
 import { execFileSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const HOSTS = {
@@ -69,6 +69,34 @@ console.log(`${bucket} exists`);
 
 // 2. Migrations.
 console.log(wrangler(["d1", "migrations", "apply", database, "--env", env, "--remote"]));
+
+// 2b. The catalogue: cosmetics/catalogue.json and its textures. Each texture
+// is stored under its content's hash, so a changed image is a new address
+// and the old one can be cached for a year without going stale.
+const catalogue = JSON.parse(readFileSync("cosmetics/catalogue.json", "utf8")).cosmetics;
+const seenIds = new Set();
+const rows = [];
+for (const c of catalogue) {
+  if (!/^[a-z0-9.-]+$/.test(c.id) || seenIds.has(c.id)) throw new Error(`catalogue: bad or repeated id ${c.id}`);
+  if (!["cape", "head", "back"].includes(c.slot)) throw new Error(`catalogue: ${c.id} has slot ${c.slot}`);
+  if (typeof c.name !== "string" || c.name.includes("'")) throw new Error(`catalogue: ${c.id} needs a plain name`);
+  seenIds.add(c.id);
+  const bytes = readFileSync(`cosmetics/${c.file}`);
+  const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 12);
+  const key = `cosmetics/${hash}-${c.file}`;
+  wrangler([
+    "r2", "object", "put", `${bucket}/${key}`, "--file", `cosmetics/${c.file}`, "--remote",
+    "--content-type", "image/png", "--cache-control", "public, max-age=31536000, immutable",
+  ]);
+  rows.push(
+    `INSERT INTO cosmetics (id, slot, name, texture) VALUES ('${c.id}', '${c.slot}', '${c.name}', '${key}') ` +
+      "ON CONFLICT (id) DO UPDATE SET slot = excluded.slot, name = excluded.name, texture = excluded.texture;",
+  );
+}
+if (rows.length > 0) {
+  console.log(wrangler(["d1", "execute", database, "--env", env, "--remote", "--command", rows.join(" ")]));
+}
+console.log(`catalogue: ${rows.length} cosmetic(s)`);
 
 // 3. The Worker.
 console.log(wrangler(["deploy", "--env", env, "--var", `COMMIT:${commit}`]));
