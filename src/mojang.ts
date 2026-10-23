@@ -36,8 +36,7 @@ export function createMojang(fetchFn: typeof fetch): Mojang {
       }
       if (response.status === 204) return null;
       if (response.status !== 200) {
-        const said = (await response.text().catch(() => "")).slice(0, 200);
-        throw new MojangUnavailable(`hasJoined answered ${response.status}${said ? `: ${said}` : ""}`);
+        throw new MojangUnavailable(`hasJoined answered ${response.status}${said(await response.text().catch(() => ""))}`);
       }
       const body = (await response.json().catch(() => null)) as { id?: unknown; name?: unknown } | null;
       const uuid = typeof body?.id === "string" ? normaliseUuid(body.id) : null;
@@ -47,6 +46,13 @@ export function createMojang(fetchFn: typeof fetch): Mojang {
       return { uuid, username: body.name };
     },
   };
+}
+
+/** The gist of a refusal: an HTML block page's title, or the start of anything else. */
+function said(body: string): string {
+  const title = /<title[^>]*>([^<]*)<\/title>/i.exec(body)?.[1]?.replace(/\s+/g, " ").trim();
+  const gist = title || body.replace(/\s+/g, " ").trim().slice(0, 200);
+  return gist ? `: ${gist}` : "";
 }
 
 export function normaliseUuid(raw: string): string | null {
