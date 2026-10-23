@@ -1,13 +1,15 @@
 import { createRemoteJWKSet } from "jose";
 import type { AccessKeys } from "./access";
-import { createMojang, type Mojang } from "./mojang";
+import mojangKeys from "./mojang-keys.json";
+import { importMojangKeys } from "./player-certificate";
 
 /**
  * Everything the service reaches outside itself for, other than its own
  * bindings. Tests pass their own; the deployed Worker uses `realDeps`.
  */
 export interface Deps {
-  mojang: Mojang;
+  /** The keys Mojang certifies players' keys with (src/player-certificate.ts). */
+  mojangKeys(): Promise<CryptoKey[]>;
   now(): number;
   randomBytes(n: number): Uint8Array;
   /** The keys a Cloudflare Access team signs with (src/access.ts). */
@@ -18,9 +20,13 @@ export interface Deps {
 // fetched, so keeping the set is what keeps that cache.
 const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
+// Imported once per isolate. Bundled, not fetched: Mojang's firewall refuses
+// a Worker's requests (ADR-0020, amended).
+let mojang: Promise<CryptoKey[]> | undefined;
+
 export function realDeps(): Deps {
   return {
-    mojang: createMojang((input, init) => fetch(input, init)),
+    mojangKeys: () => (mojang ??= importMojangKeys(mojangKeys.playerCertificateKeys)),
     now: () => Date.now(),
     randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),
     accessKeys: (team) => {

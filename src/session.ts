@@ -1,7 +1,6 @@
 import { base64url, checkChallenge, hex, issueChallenge } from "./challenge";
 import type { Deps } from "./deps";
-import { serverIdFor } from "./minecraft-digest";
-import { MojangUnavailable } from "./mojang";
+import { certifiedByMojang, fromBase64, signedByPlayer } from "./player-certificate";
 import { failure, json } from "./respond";
 
 /** How long an ash session lasts. The launcher runs the handshake again
@@ -9,6 +8,51 @@ import { failure, json } from "./respond";
 export const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
 const USERNAME = /^[A-Za-z0-9_]{1,16}$/;
+const UUID = /^[0-9a-f]{32}$/;
+/** Far beyond any RSA key or signature Mojang hands out. */
+const MAX_KEY_BYTES = 2048;
+
+interface SignInBody {
+  challenge: string;
+  uuid: string;
+  username: string;
+  certificate: { public_key: Uint8Array; expires_at: number; signature: Uint8Array };
+  signature: Uint8Array;
+}
+
+/** `{challenge, uuid, username, certificate: {public_key, expires_at, signature}, signature}`, or null. */
+function readSignIn(raw: unknown): SignInBody | null {
+  const body = raw as Record<string, unknown> | null;
+  const certificate = body?.certificate as Record<string, unknown> | null | undefined;
+  const bytes = (value: unknown) => {
+    const decoded = typeof value === "string" ? fromBase64(value) : null;
+    return decoded !== null && decoded.length > 0 && decoded.length <= MAX_KEY_BYTES ? decoded : null;
+  };
+  const publicKey = bytes(certificate?.public_key);
+  const keySignature = bytes(certificate?.signature);
+  const signature = bytes(body?.signature);
+  if (
+    typeof body?.challenge !== "string" ||
+    typeof body.uuid !== "string" ||
+    !UUID.test(body.uuid) ||
+    typeof body.username !== "string" ||
+    !USERNAME.test(body.username) ||
+    typeof certificate?.expires_at !== "number" ||
+    !Number.isSafeInteger(certificate.expires_at) ||
+    publicKey === null ||
+    keySignature === null ||
+    signature === null
+  ) {
+    return null;
+  }
+  return {
+    challenge: body.challenge,
+    uuid: body.uuid,
+    username: body.username,
+    certificate: { public_key: publicKey, expires_at: certificate.expires_at, signature: keySignature },
+    signature,
+  };
+}
 
 /** POST /v1/session/challenge */
 export async function challenge(env: Env, deps: Deps): Promise<Response> {
@@ -17,14 +61,19 @@ export async function challenge(env: Env, deps: Deps): Promise<Response> {
 }
 
 /**
- * POST /v1/session, `{challenge, username}`: the backend's half of the join
- * handshake (ADR-0020). The account is whoever Mojang says joined, never
- * whoever the caller claims to be.
+ * POST /v1/session: the backend's half of the sign-in (ADR-0020, amended).
+ * The account is the UUID Mojang certified the player's key for, and only
+ * the holder of that key's private half can sign the challenge. Nothing is
+ * asked of Mojang; the username is the player's word, kept for display.
  */
 export async function signIn(request: Request, env: Env, deps: Deps): Promise<Response> {
-  const body = (await request.json().catch(() => null)) as { challenge?: unknown; username?: unknown } | null;
-  if (typeof body?.challenge !== "string" || typeof body.username !== "string" || !USERNAME.test(body.username)) {
-    return failure(400, "invalid_request", "expected {challenge, username}");
+  const body = readSignIn(await request.json().catch(() => null));
+  if (body === null) {
+    return failure(
+      400,
+      "invalid_request",
+      "expected {challenge, uuid, username, certificate: {public_key, expires_at, signature}, signature}",
+    );
   }
   const now = deps.now();
 
@@ -33,28 +82,27 @@ export async function signIn(request: Request, env: Env, deps: Deps): Promise<Re
     return failure(400, "challenge_invalid", `the challenge is ${check.reason}; ask for a new one`);
   }
 
-  let profile;
-  try {
-    profile = await deps.mojang.hasJoined(body.username, await serverIdFor(body.challenge));
-  } catch (e) {
-    if (e instanceof MojangUnavailable) {
-      // What Mojang actually said, in the log and in the answer, so a failure
-      // here can be told apart from a slow one without guessing.
-      console.warn(`mojang unavailable: ${e.message}`);
-      return failure(
-        503,
-        "mojang_unavailable",
-        `Mojang's session server could not confirm the join (${e.message}); try again`,
-      );
-    }
-    throw e;
+  const { certificate } = body;
+  if (certificate.expires_at <= now) {
+    return failure(401, "certificate_expired", "that player key has expired; get a new one from Mojang");
   }
-  if (profile === null) {
-    return failure(401, "not_joined", "Mojang says that player did not join this challenge");
+  const certified = await certifiedByMojang(
+    await deps.mojangKeys(),
+    body.uuid,
+    certificate.expires_at,
+    certificate.public_key,
+    certificate.signature,
+  );
+  if (!certified) {
+    return failure(401, "certificate_invalid", "Mojang did not certify that key for that player");
   }
+  if (!(await signedByPlayer(certificate.public_key, body.signature, body.challenge))) {
+    return failure(401, "signature_invalid", "the challenge was not signed with that player's key");
+  }
+  const profile = { uuid: body.uuid, username: body.username };
 
-  // Claimed only now, after Mojang confirmed a real join, so a redemption
-  // never costs a write unless a real player is signing in.
+  // Claimed only now, after the proof checked out, so a redemption never
+  // costs a write unless a real player is signing in.
   const claim = await env.DB.prepare(
     "INSERT INTO redeemed_challenges (challenge, expires_at) VALUES (?, ?) ON CONFLICT DO NOTHING",
   )
