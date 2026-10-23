@@ -6,19 +6,19 @@ import sessionExample from "../contract/session.json";
 import { CHALLENGE_LIFETIME_MS } from "../src/challenge";
 import { SESSION_LIFETIME_MS } from "../src/session";
 import { expectShape } from "./contract";
-import { harness, NOTCH, reset, rows } from "./harness";
+import { FakeMojang } from "./fakes";
+import { harness, JEB, NOTCH, reset, rows } from "./harness";
 
 let h: ReturnType<typeof harness>;
-let mojang: ReturnType<typeof harness>["mojang"];
 let deps: ReturnType<typeof harness>["deps"];
 let call: ReturnType<typeof harness>["call"];
 let newChallenge: ReturnType<typeof harness>["newChallenge"];
-let joinAs: ReturnType<typeof harness>["joinAs"];
+let proofFor: ReturnType<typeof harness>["proofFor"];
 let signIn: ReturnType<typeof harness>["signIn"];
 
 beforeEach(async () => {
   h = harness();
-  ({ mojang, deps, call, newChallenge, joinAs, signIn } = h);
+  ({ deps, call, newChallenge, proofFor, signIn } = h);
   await reset();
 });
 
@@ -28,8 +28,12 @@ async function everyRow(): Promise<number> {
   return total;
 }
 
+async function redeem(body: unknown) {
+  return call("POST", "/v1/session", { body });
+}
+
 describe("signing in", () => {
-  it("creates the account Mojang confirmed, once, and says it was created", async () => {
+  it("creates the account Mojang certified the key for, once, and says it was created", async () => {
     const first = await signIn();
 
     expect(first.status).toBe(200);
@@ -42,26 +46,14 @@ describe("signing in", () => {
     expect(await rows("accounts")).toBe(1);
   });
 
-  it("keys the account on the UUID Mojang returns, never on anything the caller sends", async () => {
-    const challenge = await newChallenge();
-    await joinAs(NOTCH, challenge);
+  it("refuses a key certified for one player offered as another's", async () => {
+    const notch = await proofFor(NOTCH, await newChallenge());
 
-    const { body } = await call("POST", "/v1/session", {
-      body: { challenge, username: "Notch", uuid: "00000000000000000000000000000000" },
-    });
+    const { status, body } = await redeem({ ...notch, uuid: JEB.uuid, username: JEB.username });
 
-    expect(body.account.uuid).toBe(NOTCH.uuid);
-    const stored = await env.DB.prepare("SELECT uuid FROM accounts").all<{ uuid: string }>();
-    expect(stored.results.map((r) => r.uuid)).toEqual([NOTCH.uuid]);
-  });
-
-  it("asks Mojang about the server id derived from the challenge, never the challenge itself", async () => {
-    await signIn();
-
-    expect(mojang.asked).toHaveLength(1);
-    const [asked] = mojang.asked;
-    expect(asked!.serverId).not.toContain(".");
-    expect(asked!.serverId).toMatch(/^-?[0-9a-f]{1,40}$/);
+    expect(status).toBe(401);
+    expect(body.error.kind).toBe("certificate_invalid");
+    expect(await everyRow()).toBe(0);
   });
 
   it("updates the username when the player has renamed", async () => {
@@ -89,42 +81,36 @@ describe("signing in", () => {
 
 describe("a challenge", () => {
   it("can be redeemed once", async () => {
-    const challenge = await newChallenge();
-    await joinAs(NOTCH, challenge);
-    const body = { challenge, username: "Notch" };
+    const proof = await proofFor(NOTCH, await newChallenge());
 
-    expect((await call("POST", "/v1/session", { body })).status).toBe(200);
-    const again = await call("POST", "/v1/session", { body });
+    expect((await redeem(proof)).status).toBe(200);
+    const again = await redeem(proof);
 
     expect(again.status).toBe(409);
     expect(again.body.error.kind).toBe("challenge_used");
     expect(await rows("sessions")).toBe(1);
   });
 
-  it("expires, and an expired one is refused before Mojang is asked", async () => {
-    const challenge = await newChallenge();
-    await joinAs(NOTCH, challenge);
+  it("expires", async () => {
+    const proof = await proofFor(NOTCH, await newChallenge());
     deps.advance(CHALLENGE_LIFETIME_MS + 1);
 
-    const { status, body } = await call("POST", "/v1/session", { body: { challenge, username: "Notch" } });
+    const { status, body } = await redeem(proof);
 
     expect(status).toBe(400);
     expect(body.error.kind).toBe("challenge_invalid");
-    expect(mojang.asked).toHaveLength(0);
   });
 
-  it("that this service never issued is refused before Mojang is asked", async () => {
+  it("that this service never issued is refused, however well it is signed", async () => {
     const issued = await newChallenge();
     const [expiry, nonce, mac] = issued.split(".");
     const forged = `${expiry}.${nonce!.replace(/.$/, (c) => (c === "0" ? "1" : "0"))}.${mac}`;
-    await joinAs(NOTCH, forged);
 
-    const { status, body } = await call("POST", "/v1/session", { body: { challenge: forged, username: "Notch" } });
+    const { status, body } = await redeem(await proofFor(NOTCH, forged));
 
     expect(status).toBe(400);
     expect(body.error.kind).toBe("challenge_invalid");
     expectShape(body, errorExample);
-    expect(mojang.asked).toHaveLength(0);
   });
 
   it("costs no database write to issue, however many are asked for", async () => {
@@ -138,40 +124,70 @@ describe("a challenge", () => {
   });
 });
 
-describe("a failed sign-in", () => {
-  it("issues nothing when Mojang says the player did not join", async () => {
-    const challenge = await newChallenge();
-    // The player joined a different challenge - or nobody joined at all.
-    await joinAs(NOTCH, await newChallenge());
+describe("a failed sign-in issues nothing", () => {
+  it("when the player's key has expired", async () => {
+    const proof = await proofFor(NOTCH, await newChallenge(), { expiresAt: deps.now() });
 
-    const { status, body } = await call("POST", "/v1/session", { body: { challenge, username: "Notch" } });
+    const { status, body } = await redeem(proof);
 
     expect(status).toBe(401);
-    expect(body.error.kind).toBe("not_joined");
+    expect(body.error.kind).toBe("certificate_expired");
     expect(await everyRow()).toBe(0);
   });
 
-  it("says Mojang is unavailable, not 'not signed in', when Mojang cannot answer", async () => {
+  it("when the key wasn't certified by Mojang", async () => {
+    const impostor = await FakeMojang.create();
+    const proof = await proofFor(NOTCH, await newChallenge(), { by: impostor });
+
+    const { status, body } = await redeem(proof);
+
+    expect(status).toBe(401);
+    expect(body.error.kind).toBe("certificate_invalid");
+    expect(await everyRow()).toBe(0);
+  });
+
+  it("when the certificate's expiry was changed", async () => {
+    const proof = await proofFor(NOTCH, await newChallenge());
+    const stretched = { ...proof.certificate, expires_at: proof.certificate.expires_at + 1 };
+
+    const { body } = await redeem({ ...proof, certificate: stretched });
+
+    expect(body.error.kind).toBe("certificate_invalid");
+  });
+
+  it("when the challenge was signed by some other key", async () => {
     const challenge = await newChallenge();
-    await joinAs(NOTCH, challenge);
-    mojang.down = true;
+    const notch = await proofFor(NOTCH, challenge);
+    const jeb = await proofFor(JEB, challenge);
 
-    const { status, body } = await call("POST", "/v1/session", { body: { challenge, username: "Notch" } });
+    const { status, body } = await redeem({ ...notch, signature: jeb.signature });
 
-    expect(status).toBe(503);
-    expect(body.error.kind).toBe("mojang_unavailable");
-    // What Mojang said goes along, so a failure can be read, not guessed.
-    expect(body.error.message).toContain("fake Mojang is down");
+    expect(status).toBe(401);
+    expect(body.error.kind).toBe("signature_invalid");
     expect(await everyRow()).toBe(0);
   });
 
+  it("when the signature is over a different challenge", async () => {
+    const challenge = await newChallenge();
+    const other = await proofFor(NOTCH, await newChallenge());
+
+    const { body } = await redeem({ ...other, challenge });
+
+    expect(body.error.kind).toBe("signature_invalid");
+  });
+
+  const someone = { challenge: "x", uuid: NOTCH.uuid, username: "Notch" };
   it.each([
     [{}],
     [{ challenge: "x" }],
-    [{ challenge: "x", username: "not a name" }],
-    [{ challenge: "x", username: "seventeen_letters" }],
-  ])("refuses a malformed request %j", async (body) => {
-    const response = await call("POST", "/v1/session", { body });
+    [{ ...someone, uuid: "not-a-uuid" }],
+    [{ ...someone, username: "not a name" }],
+    [{ ...someone, username: "seventeen_letters" }],
+    [{ ...someone, certificate: {}, signature: "AAAA" }],
+    [{ ...someone, certificate: { public_key: "not base64!", expires_at: 1, signature: "AAAA" }, signature: "AAAA" }],
+    [{ ...someone, certificate: { public_key: "AAAA", expires_at: "soon", signature: "AAAA" }, signature: "AAAA" }],
+  ])("when the request is malformed: %j", async (body) => {
+    const response = await redeem(body);
     expect(response.status).toBe(400);
     expect(response.body.error.kind).toBe("invalid_request");
   });

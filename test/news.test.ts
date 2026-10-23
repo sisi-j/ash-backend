@@ -5,13 +5,13 @@ import { handle } from "../src/app";
 import { COVER_MAX_BYTES } from "../src/news";
 import { AUD, accessToken, strangerKey, TEAM } from "./access-keys";
 import { expectShape } from "./contract";
-import { FakeMojang, fakeDeps } from "./fakes";
+import { fakeDeps } from "./fakes";
 import { reset } from "./harness";
 
 let deps: ReturnType<typeof fakeDeps>;
 
 beforeEach(async () => {
-  deps = fakeDeps(new FakeMojang());
+  deps = fakeDeps();
   await reset();
   const listed = await env.ASSETS.list();
   for (const object of listed.objects) await env.ASSETS.delete(object.key);

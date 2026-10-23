@@ -6,7 +6,7 @@ One example per response shape. The backend's tests check every real response ag
 | --- | --- |
 | `health.json` | `GET /health` |
 | `session-challenge.json` | `POST /v1/session/challenge` |
-| `session.json` | `POST /v1/session` with `{challenge, username}` |
+| `session.json` | `POST /v1/session` with `{challenge, uuid, username, certificate: {public_key, expires_at, signature}, signature}`: the player's key from Mojang's `/player/certificates` (`public_key` its X.509 bytes and `signature` Mojang's `publicKeySignatureV2`, both base64; `expires_at` in milliseconds), and the challenge signed with it, SHA256withRSA over `ash-account-sign-in:` and the challenge (ADR-0020, amended) |
 | `account.json` | `GET /v1/account`, signed in |
 | `settings.json` | `GET /v1/settings` and `PUT /v1/settings` (which takes `{changes: [the same items]}`), signed in. `deleted: true` has an empty `value` |
 | `cosmetics.json` | `GET /v1/cosmetics`: the catalogue. Public |
@@ -20,8 +20,9 @@ The error kinds so far:
 - `invalid_request`;
 - `challenge_invalid`;
 - `challenge_used`;
-- `not_joined`;
-- `mojang_unavailable`, which is retryable and never means "not signed in";
+- `certificate_expired`: the player's key from Mojang has expired, so get a new one;
+- `certificate_invalid`: Mojang didn't certify that key for that player;
+- `signature_invalid`: the challenge wasn't signed with that key;
 - `not_signed_in`;
 - `not_found`;
 - `method_not_allowed`.

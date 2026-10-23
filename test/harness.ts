@@ -2,18 +2,19 @@ import { env } from "cloudflare:workers";
 import { expect } from "vitest";
 import challengeExample from "../contract/session-challenge.json";
 import { handle } from "../src/app";
-import { serverIdFor } from "../src/minecraft-digest";
 import { expectShape } from "./contract";
 import { FakeMojang, fakeDeps } from "./fakes";
 
 export const NOTCH = { uuid: "986dec87b7ec47ff89ff033fdb95c4b5", username: "Notch" };
 export const JEB = { uuid: "853c80ef3c3749fdaa49938b674adae6", username: "jeb_" };
 
+/** A player key's lifetime, as Mojang gives them: two days. */
+export const KEY_LIFETIME_MS = 48 * 60 * 60 * 1000;
+
 /** The application with a fake Mojang and a clock the test moves, over the
  *  real local D1. Storage is per test file, so `reset` empties it per test. */
 export function harness() {
-  const mojang = new FakeMojang();
-  const deps = fakeDeps(mojang);
+  const deps = fakeDeps();
 
   async function call(method: string, path: string, opts: { body?: unknown; token?: string } = {}) {
     const headers: Record<string, string> = {};
@@ -39,18 +40,29 @@ export function harness() {
     return body.challenge;
   }
 
-  /** What the player's machine does: join the derived server id at Mojang. */
-  async function joinAs(profile: typeof NOTCH, challenge: string) {
-    mojang.join(profile, await serverIdFor(challenge));
+  /** What the player's machine sends: its key, Mojang's certificate for it, and the challenge signed. */
+  async function proofFor(
+    profile: typeof NOTCH,
+    challenge: string,
+    opts: { by?: FakeMojang; expiresAt?: number } = {},
+  ) {
+    const mojang = opts.by ?? (await FakeMojang.trusted());
+    const key = await mojang.certify(profile.uuid, opts.expiresAt ?? deps.now() + KEY_LIFETIME_MS);
+    return {
+      challenge,
+      uuid: profile.uuid,
+      username: profile.username,
+      certificate: key.certificate,
+      signature: await key.sign(challenge),
+    };
   }
 
   async function signIn(profile = NOTCH) {
     const challenge = await newChallenge();
-    await joinAs(profile, challenge);
-    return call("POST", "/v1/session", { body: { challenge, username: profile.username } });
+    return call("POST", "/v1/session", { body: await proofFor(profile, challenge) });
   }
 
-  return { mojang, deps, call, newChallenge, joinAs, signIn };
+  return { deps, call, newChallenge, proofFor, signIn };
 }
 
 /** Every table the migrations made, by name. */
