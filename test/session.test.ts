@@ -160,6 +160,8 @@ describe("a failed sign-in", () => {
 
     expect(status).toBe(503);
     expect(body.error.kind).toBe("mojang_unavailable");
+    // What Mojang said goes along, so a failure can be read, not guessed.
+    expect(body.error.message).toContain("fake Mojang is down");
     expect(await everyRow()).toBe(0);
   });
 

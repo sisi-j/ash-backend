@@ -38,7 +38,14 @@ export async function signIn(request: Request, env: Env, deps: Deps): Promise<Re
     profile = await deps.mojang.hasJoined(body.username, await serverIdFor(body.challenge));
   } catch (e) {
     if (e instanceof MojangUnavailable) {
-      return failure(503, "mojang_unavailable", "Mojang's session server could not confirm the join; try again");
+      // What Mojang actually said, in the log and in the answer, so a failure
+      // here can be told apart from a slow one without guessing.
+      console.warn(`mojang unavailable: ${e.message}`);
+      return failure(
+        503,
+        "mojang_unavailable",
+        `Mojang's session server could not confirm the join (${e.message}); try again`,
+      );
     }
     throw e;
   }
