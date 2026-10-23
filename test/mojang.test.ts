@@ -39,6 +39,12 @@ describe("Mojang's hasJoined", () => {
     await expect(mojang.hasJoined("Notch", "abc")).rejects.toThrow(/403: .*ForbiddenOperationException/);
   });
 
+  it("names a block page by its title rather than its first bytes", async () => {
+    const page = "<!DOCTYPE html>\n<html><head>\n<title>\n  Access Denied\n</title></head><body>long</body></html>";
+    const fetchFn = (async () => new Response(page, { status: 403 })) as typeof fetch;
+    await expect(createMojang(fetchFn).hasJoined("Notch", "abc")).rejects.toThrow("hasJoined answered 403: Access Denied");
+  });
+
   it("reads 204 as 'did not join'", async () => {
     expect(await answering(204).mojang.hasJoined("Notch", "abc")).toBeNull();
   });
