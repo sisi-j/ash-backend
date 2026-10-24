@@ -1,6 +1,7 @@
 import { verifyAccess } from "./access";
 import { ADMIN_HTML, ADMIN_JS } from "./admin-page";
 import type { Deps } from "./deps";
+import { adminLinks, setLinks } from "./links";
 import { createPost, deleteCover, deletePost, listPosts, putCover, setPublished, updatePost } from "./news";
 import { failure } from "./respond";
 
@@ -21,6 +22,11 @@ export async function handleAdmin(request: Request, env: Env, deps: Deps): Promi
   }
   if (pathname === "/admin/app.js") {
     return method === "GET" ? page(ADMIN_JS, "text/javascript", env) : notAllowed(method, pathname);
+  }
+  if (pathname === "/admin/api/links") {
+    if (method === "GET") return adminLinks(env);
+    if (method === "PUT") return setLinks(request, env, deps);
+    return notAllowed(method, pathname);
   }
   if (pathname === "/admin/api/posts") {
     if (method === "GET") return listPosts(env);

@@ -1,5 +1,6 @@
 import { handleAdmin } from "./admin";
 import { deleteAccount } from "./deletion";
+import { publicLinks } from "./links";
 import type { Deps } from "./deps";
 import { publishedNews } from "./news";
 import { failure, json } from "./respond";
@@ -27,6 +28,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
     DELETE: signedIn((who, _request, env) => signOut(who, env)),
   },
   "/v1/news": { GET: (_request, env) => publishedNews(env) },
+  "/v1/links": { GET: (_request, env) => publicLinks(env) },
   "/v1/cosmetics": { GET: (_request, env) => catalogue(env) },
   "/v1/wardrobe": {
     GET: signedIn((who, _request, env, deps) => wardrobe(who, env, deps.now())),

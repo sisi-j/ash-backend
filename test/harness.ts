@@ -76,7 +76,7 @@ export async function tables(): Promise<string[]> {
 
 export async function reset(): Promise<void> {
   // Children before parents, so no foreign key stops a delete.
-  const order = ["equipped", "settings", "sessions", "entitlements", "redeemed_challenges", "cosmetics", "accounts", "posts"];
+  const order = ["equipped", "settings", "sessions", "entitlements", "redeemed_challenges", "cosmetics", "accounts", "posts", "links"];
   const all = await tables();
   const rest = all.filter((t) => !order.includes(t));
   await env.DB.batch([...rest, ...order].map((t) => env.DB.prepare(`DELETE FROM ${t}`)));
