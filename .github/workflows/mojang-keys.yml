@@ -1,0 +1,28 @@
+# Weekly: are the Mojang keys the backend checks sign-ins with still Mojang's?
+# A failed run emails the repo's owner (scripts/check-mojang-keys.mjs says
+# what to do).
+name: Mojang's keys
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+  # And on any change to the keys or the check, so an update is checked too.
+  pull_request:
+    paths:
+      - src/mojang-keys.json
+      - scripts/check-mojang-keys.mjs
+      - .github/workflows/mojang-keys.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/check-mojang-keys.mjs
