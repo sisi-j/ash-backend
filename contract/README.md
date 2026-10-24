@@ -12,6 +12,7 @@ One example per response shape. The backend's tests check every real response ag
 | `cosmetics.json` | `GET /v1/cosmetics`: the catalogue. Public |
 | `wardrobe.json` | `GET /v1/wardrobe` and `PUT /v1/wardrobe` (which takes `{slot, cosmetic_id}`, null to take it off), signed in. An empty slot is `null` |
 | `profile.json` | not an endpoint: `profiles/<uuid>.json` on the CDN, read by the game client for players it can see. Absent means no ash cosmetics; a slot not worn is absent |
+| `links.json` | `GET /v1/links`: links the launcher shows that can change without a release. `feedback_url` is a Discord invite, or null until one is set. Public |
 | `news.json` | `GET /v1/news`: published posts, newest first. `cover_url` may be null; `kind` is `news` or `patch_notes`; `body` is the Markdown subset |
 | (no body, 204) | `DELETE /v1/account`, signed in: the account and everything about it are gone |
 | `error.json` | every failure. `kind` is the stable part. |

@@ -38,7 +38,10 @@ export const ADMIN_HTML = `<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>ash news</h1><span id="status"></span><button id="new" class="primary">New post</button></header>
+<header><h1>ash news</h1><span id="status"></span>
+  <input id="feedback" placeholder="Feedback link: https://discord.gg/..." size="34" title="The Discord invite behind the launcher's Send feedback">
+  <button id="saveFeedback">Save link</button>
+  <button id="new" class="primary">New post</button></header>
 <main>
   <aside id="list"></aside>
   <section id="editor" hidden>
@@ -184,5 +187,10 @@ $("cover").onchange = () => {
 $("removeCover").onclick = () => guard(async () => replace((await api("DELETE", "/posts/" + current.id + "/cover")).post), "Cover removed");
 for (const id of ["kind", "title", "body"]) $(id).oninput = preview;
 
-guard(load, "");
+$("saveFeedback").onclick = () => guard(async () => {
+  const url = $("feedback").value.trim();
+  $("feedback").value = (await api("PUT", "/links", { feedback_url: url === "" ? null : url })).feedback_url ?? "";
+}, "Feedback link saved");
+
+guard(async () => { await load(); $("feedback").value = (await api("GET", "/links")).feedback_url ?? ""; }, "");
 `;
