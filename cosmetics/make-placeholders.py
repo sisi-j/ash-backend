@@ -13,9 +13,11 @@ from PIL import Image
 
 HERE = Path(__file__).parent
 
-# The cape's faces, as (x, y, width, height) in the 64x32 texture.
-FRONT = (1, 1, 10, 16)
-BACK = (12, 1, 10, 16)
+# The cape's faces, as (x, y, width, height) in the 64x32 texture. OUTSIDE is
+# the face seen from behind the player - checked in a 1.20.4 game, where a mark
+# drawn here showed on the player's back; INSIDE is the one against them.
+OUTSIDE = (1, 1, 10, 16)
+INSIDE = (12, 1, 10, 16)
 SIDES = [(0, 1, 1, 16), (11, 1, 1, 16)]
 TOP_BOTTOM = [(1, 0, 10, 1), (11, 0, 10, 1)]
 # The elytra wing, which the game draws from the same texture.
@@ -40,14 +42,15 @@ def gradient(image, box, top, bottom):
 
 def cape(name, top, bottom, edge, mark):
     image = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
-    for face in (FRONT, BACK):
+    for face in (OUTSIDE, INSIDE):
         gradient(image, face, top, bottom)
     for face in SIDES + TOP_BOTTOM:
         fill(image, face, edge + (255,))
     gradient(image, ELYTRA, top, bottom)
-    # A small mark on the back, so the preview shows which way it faces.
+    # A small mark on the outside, where other players see it, so the
+    # preview shows which way it faces.
     for (dx, dy) in mark:
-        image.putpixel((BACK[0] + dx, BACK[1] + dy), (255, 255, 255, 255))
+        image.putpixel((OUTSIDE[0] + dx, OUTSIDE[1] + dy), (255, 255, 255, 255))
         image.putpixel((ELYTRA[0] + 10 + dx, ELYTRA[1] + 4 + dy), (255, 255, 255, 255))
     image.save(HERE / f"{name}.png", optimize=False)
 
